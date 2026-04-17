@@ -1,3 +1,4 @@
+# Turning imnage -> embeddings
 import torch
 import numpy as np
 from facenet_pytorch import InceptionResnetV1

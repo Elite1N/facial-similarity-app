@@ -1,3 +1,4 @@
+# Easy usable inference pipeline for frontend
 from PIL import Image
 from facenet_pytorch import MTCNN
 

@@ -1,3 +1,4 @@
+# Populate the databases
 import os
 import sys
 import sqlite3
