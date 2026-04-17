@@ -1,0 +1,14 @@
+# Ignore python cache
+__pycache__/
+*.pyc
+
+# Ignore large data files
+data/raw/
+data/processed/
+
+# Ignore large model weights (use Git LFS or download scripts instead)
+models/**/*.pth
+
+# Ignore local environment
+venv/
+.env
