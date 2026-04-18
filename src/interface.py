@@ -1,9 +1,20 @@
 # Easy usable inference pipeline for frontend
+import os
+from pathlib import Path
+from dotenv import load_dotenv
 from PIL import Image
 from facenet_pytorch import MTCNN
 
 from src.embedder import FaceNetEmbedder
 from src.db_manager import DBManager
+
+# Load .env from the project root (two levels up from this file: src/ -> project/)
+_project_root = Path(__file__).resolve().parent.parent
+load_dotenv(_project_root / "config.env")
+
+# When MAC=true, Windows-style backslash paths stored in the DB are converted
+# to absolute POSIX paths at runtime. Set MAC=false to keep paths as-is (Windows).
+_IS_MAC = os.getenv("MAC", "false").strip().lower() == "true"
 
 # Global singletons for models/db to prevent reloading on multiple function calls
 _mtcnn = None
@@ -56,13 +67,22 @@ def get_match(image_path: str):
         
     match = results[0]
     
-    # Formatting the output as requested. 
+    # Formatting the output as requested.
     # Bio is placeholder since we only stored Name/Path in SQLite.
+    raw_path = match["image_path"]
+    if _IS_MAC:
+        # DB was built on Windows — backslashes must be converted and the
+        # path made absolute so Streamlit can locate the file on macOS.
+        raw_path = raw_path.replace("\\", "/")
+        image_path_out = str(_project_root / raw_path)
+    else:
+        # Windows: use the stored path as-is (already correct separators).
+        image_path_out = raw_path
     formatted_result = {
         "Name": match["name"],
         "Bio": f"{match['name']} is a famous person from the dataset.",
-        "Image Path": match["image_path"],
-        "Similarity Score": match["distance"] 
+        "Image Path": image_path_out,
+        "Similarity Score": match["distance"]
     }
     
     return formatted_result
