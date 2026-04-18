@@ -31,61 +31,71 @@ def _init_components():
     if _db_manager is None:
         _db_manager = DBManager()
 
-def get_match(image_path: str, k: int = 1):
+def _resolve_image_path(raw_path: str) -> str:
+    """Convert a DB-stored path to an absolute, OS-correct path."""
+    if _IS_MAC:
+        # DB was built on Windows: backslashes → forward slashes, made absolute.
+        raw_path = raw_path.replace("\\", "/")
+        return str(_project_root / raw_path)
+    # Windows: path already uses the right separator and is relative to CWD.
+    return raw_path
+
+
+def _format_match(match: dict) -> dict:
+    """Format a raw DB match dict into the public result schema."""
+    return {
+        "Name": match["name"],
+        "Bio": f"{match['name']} is a famous person from the dataset.",
+        "Image Path": _resolve_image_path(match["image_path"]),
+        "Similarity Score": match["distance"],
+    }
+
+
+def get_matches(image_path: str, k: int = 5) -> list | dict:
     """
-    Takes an input image path, detects the face, computes the embedding,
-    and queries the database for the top k closest famous person matches.
-    
+    Detects the face in *image_path*, computes its embedding, and returns
+    the top-k celebrity matches from the database.
+
     Args:
-        image_path (str): The path to the input selfie or image.
+        image_path (str): Path to the input selfie or image (or a file-like object).
         k (int): Number of top matches to return.
-        
+
     Returns:
-        list[dict] or dict: A list of dictionaries containing Name, Bio, Image Path, and Similarity Score.
-                            If an error occurs or no face is found, returns a dict with an 'error' key.
+        list[dict]: Each dict has keys – Name, Bio, Image Path, Similarity Score.
+                    On failure returns {'error': <message>}.
     """
     _init_components()
-    
+
     try:
-        img = Image.open(image_path).convert('RGB')
+        img = Image.open(image_path).convert("RGB")
     except Exception as e:
-        return {"error": f"Failed to load image at {image_path}: {e}"}
+        return {"error": f"Failed to load image: {e}"}
 
     # 1. Detect and crop face
     face_tensor = _mtcnn(img)
-    
     if face_tensor is None:
-        return {"error": "No face detected in the image."}
-        
-    # 2. Extract embedding
+        return {"error": "No face detected in the image. Please upload a clearer photo."}
+
+    # 2. Extract FaceNet embedding
     embedding = _embedder.get_embedding(face_tensor)
-    
-    # 3. Find closest match in the database
-    results = _db_manager.find_closest_famous_person(embedding, k=k)
-    
-    if not results:
+
+    # 3. Find closest matches in the database
+    raw_results = _db_manager.find_closest_famous_person(embedding, k=k)
+    if not raw_results:
         return {"error": "No matching records found in the database."}
-        
-    formatted_results = []
-    
-    for match in results:
-        # Formatting the output as requested.
-        # Bio is placeholder since we only stored Name/Path in SQLite.
-        raw_path = match["image_path"]
-        if _IS_MAC:
-            # DB was built on Windows — backslashes must be converted and the
-            # path made absolute so Streamlit can locate the file on macOS.
-            raw_path = raw_path.replace("\\", "/")
-            image_path_out = str(_project_root / raw_path)
-        else:
-            # Windows: use the stored path as-is (already correct separators).
-            image_path_out = raw_path
-            
-        formatted_results.append({
-            "Name": match["name"],
-            "Bio": f"{match['name']} is a famous person from the dataset.",
-            "Image Path": image_path_out,
-            "Similarity Score": match["distance"]
-        })
-    
-    return formatted_results
+
+    return [_format_match(r) for r in raw_results]
+
+
+def get_match(image_path: str) -> dict:
+    """
+    Convenience wrapper – returns only the single best celebrity match.
+
+    Returns:
+        dict: Keys – Name, Bio, Image Path, Similarity Score.
+              On failure returns {'error': <message>}.
+    """
+    result = get_matches(image_path, k=1)
+    if isinstance(result, dict) and "error" in result:
+        return result
+    return result[0] if result else {"error": "No matching records found in the database."}
