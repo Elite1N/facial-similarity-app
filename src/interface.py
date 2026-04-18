@@ -31,17 +31,18 @@ def _init_components():
     if _db_manager is None:
         _db_manager = DBManager()
 
-def get_match(image_path: str):
+def get_match(image_path: str, k: int = 1):
     """
     Takes an input image path, detects the face, computes the embedding,
-    and queries the database for the closest famous person match.
+    and queries the database for the top k closest famous person matches.
     
     Args:
         image_path (str): The path to the input selfie or image.
+        k (int): Number of top matches to return.
         
     Returns:
-        dict: A dictionary containing Name, Bio, Image Path, and Similarity Score.
-              If an error occurs or no face is found, returns an 'error' key.
+        list[dict] or dict: A list of dictionaries containing Name, Bio, Image Path, and Similarity Score.
+                            If an error occurs or no face is found, returns a dict with an 'error' key.
     """
     _init_components()
     
@@ -60,29 +61,31 @@ def get_match(image_path: str):
     embedding = _embedder.get_embedding(face_tensor)
     
     # 3. Find closest match in the database
-    results = _db_manager.find_closest_famous_person(embedding, k=1)
+    results = _db_manager.find_closest_famous_person(embedding, k=k)
     
     if not results:
         return {"error": "No matching records found in the database."}
         
-    match = results[0]
+    formatted_results = []
     
-    # Formatting the output as requested.
-    # Bio is placeholder since we only stored Name/Path in SQLite.
-    raw_path = match["image_path"]
-    if _IS_MAC:
-        # DB was built on Windows — backslashes must be converted and the
-        # path made absolute so Streamlit can locate the file on macOS.
-        raw_path = raw_path.replace("\\", "/")
-        image_path_out = str(_project_root / raw_path)
-    else:
-        # Windows: use the stored path as-is (already correct separators).
-        image_path_out = raw_path
-    formatted_result = {
-        "Name": match["name"],
-        "Bio": f"{match['name']} is a famous person from the dataset.",
-        "Image Path": image_path_out,
-        "Similarity Score": match["distance"]
-    }
+    for match in results:
+        # Formatting the output as requested.
+        # Bio is placeholder since we only stored Name/Path in SQLite.
+        raw_path = match["image_path"]
+        if _IS_MAC:
+            # DB was built on Windows — backslashes must be converted and the
+            # path made absolute so Streamlit can locate the file on macOS.
+            raw_path = raw_path.replace("\\", "/")
+            image_path_out = str(_project_root / raw_path)
+        else:
+            # Windows: use the stored path as-is (already correct separators).
+            image_path_out = raw_path
+            
+        formatted_results.append({
+            "Name": match["name"],
+            "Bio": f"{match['name']} is a famous person from the dataset.",
+            "Image Path": image_path_out,
+            "Similarity Score": match["distance"]
+        })
     
-    return formatted_result
+    return formatted_results
