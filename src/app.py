@@ -386,15 +386,26 @@ def google_image_urls(query: str, num: int = 5) -> list[str]:
 col_up, col_gap, col_hint = st.columns([1, 0.05, 1])
 
 with col_up:
-    uploaded_file = st.file_uploader(
-        "Drop your photo here",
-        type=["jpg", "jpeg", "png", "webp"],
-        help="Best results with a clear, front-facing photo.",
-        label_visibility="collapsed",
-    )
+    tab1, tab2 = st.tabs(["📁 Upload Photo", "📸 Take Photo"])
+    
+    with tab1:
+        uploaded_file = st.file_uploader(
+            "Drop your photo here",
+            type=["jpg", "jpeg", "png", "webp"],
+            help="Best results with a clear, front-facing photo.",
+            label_visibility="collapsed",
+        )
+        
+    with tab2:
+        camera_photo = st.camera_input(
+            "Take a picture",
+            label_visibility="collapsed",
+        )
+        
+    photo_to_process = camera_photo if camera_photo else uploaded_file
 
 with col_hint:
-    if not uploaded_file:
+    if not photo_to_process:
         st.markdown("""
         <div style="background:white;border-radius:20px;padding:32px 28px;
                     box-shadow:0 4px 24px rgba(110,86,207,0.09);margin-top:4px">
@@ -403,7 +414,7 @@ with col_hint:
                 How it works
             </div>
             <ol style="color:#6b7280;font-size:0.9rem;line-height:2;padding-left:18px">
-                <li>Upload a clear face photo</li>
+                <li>Upload or take a clear face photo</li>
                 <li>Our AI detects &amp; embeds your face</li>
                 <li>We search thousands of celebrity faces</li>
                 <li>See your match with similarity score!</li>
@@ -414,10 +425,10 @@ with col_hint:
 # ──────────────────────────────────────────────────────────────────────────────
 # Results
 # ──────────────────────────────────────────────────────────────────────────────
-if uploaded_file:
+if photo_to_process:
     # Save upload to a temp file so PIL / MTCNN can read it
     with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-        tmp.write(uploaded_file.read())
+        tmp.write(photo_to_process.read())
         tmp_path = tmp.name
 
     st.markdown("<hr class='divider'>", unsafe_allow_html=True)
@@ -450,8 +461,8 @@ if uploaded_file:
     col_you, col_score, col_celeb = st.columns([5, 3, 5])
 
     with col_you:
-        uploaded_file.seek(0)
-        user_img_b64 = base64.b64encode(uploaded_file.read()).decode()
+        photo_to_process.seek(0)
+        user_img_b64 = base64.b64encode(photo_to_process.read()).decode()
         st.markdown(f"""
         <div class="match-card">
             <img src="data:image/jpeg;base64,{user_img_b64}">

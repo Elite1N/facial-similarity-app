@@ -12,3 +12,5 @@ models/**/*.pth
 # Ignore local environment
 venv/
 .env
+
+data/
