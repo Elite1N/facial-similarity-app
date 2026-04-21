@@ -71,6 +71,39 @@ class DBManager:
                 
         return results
 
+    def add_entry(self, name: str, image_path: str, embedding: np.ndarray):
+        """
+        Adds a new face embedding and its metadata to the FAISS index and SQLite database.
+        
+        Args:
+            name (str): Name of the person.
+            image_path (str): Relative path to the image.
+            embedding (np.ndarray): The 512-dim embedding of the face.
+        """
+        # Ensure embedding shape is (1, d)
+        if embedding.ndim == 1:
+            embedding = np.expand_dims(embedding, axis=0)
+        embedding = embedding.astype(np.float32)
+        
+        # Get the next faiss_id (current number of elements in the index)
+        faiss_id = self.index.ntotal
+        
+        # Add to FAISS
+        self.index.add(embedding)
+        
+        # Add to SQLite
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "INSERT INTO faces (faiss_id, name, image_path) VALUES (?, ?, ?)",
+            (faiss_id, name, image_path)
+        )
+        # Commit will be handled selectively or later via save()
+
+    def save(self):
+        """Saves the current FAISS index and commits the SQLite transaction."""
+        faiss.write_index(self.index, str(self.faiss_path))
+        self.conn.commit()
+
     def close(self):
         """Clean up database connections."""
         self.conn.close()

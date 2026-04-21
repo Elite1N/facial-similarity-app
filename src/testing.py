@@ -7,7 +7,7 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.interface import get_match
+from src.interface import get_matches
 
 def test_single_image(image_path: str):
     """
@@ -21,7 +21,7 @@ def test_single_image(image_path: str):
         
     try:
         # Run inference
-        result = get_match(image_path, k=5)
+        result = get_matches(image_path, k=10)
         print(result)
         
         # Display results

@@ -17,7 +17,7 @@ from src.embedder import FaceNetEmbedder
 
 def main():
     # --- Configuration ---
-    dataset_root = project_root / "data" / "raw" / "Open Famous People Faces"
+    dataset_root = project_root / "data" / "raw" / "lfw-deepfunneled"
     db_dir = project_root / "data" / "database"
     db_dir.mkdir(parents=True, exist_ok=True)
     
